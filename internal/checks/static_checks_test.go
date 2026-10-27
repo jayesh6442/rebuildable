@@ -73,6 +73,24 @@ func TestReadmeCheckIgnoresFencedHeadings(t *testing.T) {
 	}
 }
 
+func TestReadmeCheckAcceptsClosingHashes(t *testing.T) {
+	loaded := loadContentRepo(t, map[string]string{
+		"README.md": "# Project #\n\n## Setup ##\n\nInstall Go.\n\n## Run ####\n\nRun the app.\n\n### Test ###   \n\nRun tests.\n",
+	}, repo.EcosystemGo)
+	result := (readmeCheck{}).Run(context.Background(), loaded)
+	if result.Status != StatusPass {
+		t.Fatalf("status = %s, want pass; findings = %+v", result.Status, result.Findings)
+	}
+
+	attached := loadContentRepo(t, map[string]string{
+		"README.md": "## Setup#\n\n## Run\n\n## Test\n",
+	}, repo.EcosystemGo)
+	result = (readmeCheck{}).Run(context.Background(), attached)
+	if result.Status != StatusWarn {
+		t.Fatalf("attached hash status = %s, want warn; findings = %+v", result.Status, result.Findings)
+	}
+}
+
 func TestLeakyFixtureGeneratedAtRuntime(t *testing.T) {
 	root := testutil.CopyFixture(t, "good-go")
 	secret := "AK" + "IA" + strings.Repeat("Z", 16)

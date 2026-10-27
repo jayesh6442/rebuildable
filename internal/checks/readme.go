@@ -71,6 +71,10 @@ func readmeSections(contents string) map[string]bool {
 			continue
 		}
 		title := strings.ToLower(strings.TrimSpace(strings.TrimLeft(line, "#")))
+		// CommonMark allows an optional closing sequence of #s preceded by a space.
+		if closed := strings.TrimRight(title, "#"); closed == "" || strings.HasSuffix(closed, " ") || strings.HasSuffix(closed, "\t") {
+			title = closed
+		}
 		title = strings.Trim(title, " :.-")
 		switch {
 		case title == "setup" || title == "install" || title == "installation" || title == "getting started":

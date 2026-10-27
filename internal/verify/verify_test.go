@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -85,5 +86,31 @@ func TestRunRequiresExplicitTrust(t *testing.T) {
 	_, err := Run(context.Background(), &repo.Workspace{Root: t.TempDir()}, Options{Timeout: time.Minute, Port: 8080})
 	if !errors.Is(err, ErrTrustRequired) {
 		t.Fatalf("error = %v, want ErrTrustRequired", err)
+	}
+}
+
+func TestRunReportsInterruptionAndCleansUp(t *testing.T) {
+	bin := t.TempDir()
+	calls := filepath.Join(t.TempDir(), "calls.log")
+	script := "#!/bin/sh\necho \"$@\" >> \"$DOCKER_CALLS\"\nif [ \"$1\" = build ]; then exec sleep 30; fi\nexit 0\n"
+	if err := os.WriteFile(filepath.Join(bin, "docker"), []byte(script), 0o755); err != nil {
+		t.Fatalf("write fake docker: %v", err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("DOCKER_CALLS", calls)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	time.AfterFunc(200*time.Millisecond, cancel)
+	workspace := &repo.Workspace{Root: t.TempDir(), Files: []string{"Dockerfile"}}
+	report, err := Run(ctx, workspace, Options{Timeout: time.Minute, Port: 8080, Trusted: true})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("error = %v, want context.Canceled (report = %+v)", err, report)
+	}
+	recorded, readErr := os.ReadFile(calls)
+	if readErr != nil {
+		t.Fatalf("read fake docker calls: %v", readErr)
+	}
+	if !strings.Contains(string(recorded), "rm --force") || !strings.Contains(string(recorded), "rmi --force") {
+		t.Fatalf("cleanup did not run after interruption:\n%s", recorded)
 	}
 }

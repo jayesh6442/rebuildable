@@ -90,6 +90,9 @@ func Run(ctx context.Context, workspace *repo.Workspace, options Options) (resul
 	defer func() {
 		failures := cleanupDocker([]string{containerName, testContainerName}, []string{imageTag, testImageTag})
 		result.Cleanup = failures
+		if resultErr == nil && ctx.Err() != nil {
+			resultErr = fmt.Errorf("verification interrupted: %w", ctx.Err())
+		}
 		if len(failures) > 0 && resultErr == nil {
 			resultErr = fmt.Errorf("Docker cleanup failed: %s", strings.Join(failures, "; "))
 		}

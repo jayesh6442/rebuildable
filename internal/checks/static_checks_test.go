@@ -143,6 +143,19 @@ func TestAbsolutePathCheckAllowsURLsAndContainerPaths(t *testing.T) {
 	}
 }
 
+func TestAbsolutePathCheckUsesEachMatchPosition(t *testing.T) {
+	for name, line := range map[string]string{
+		"url":       "See https://example.invalid/home/reviewer or /home/reviewer directly.\n",
+		"backslash": `Escaped \/home/reviewer and plain /home/reviewer.` + "\n",
+	} {
+		loaded := loadContentRepo(t, map[string]string{"notes.txt": line}, repo.EcosystemGo)
+		result := (absolutePathCheck{}).Run(context.Background(), loaded)
+		if result.Status != StatusFail || len(result.Findings) != 1 {
+			t.Fatalf("%s: status = %s, want fail with one finding; findings = %+v", name, result.Status, result.Findings)
+		}
+	}
+}
+
 func writeFile(t *testing.T, root, name, contents string) {
 	t.Helper()
 	path := filepath.Join(root, name)

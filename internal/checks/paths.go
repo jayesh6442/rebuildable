@@ -31,11 +31,12 @@ func (absolutePathCheck) Run(_ context.Context, r *repo.Repo) Result {
 		}
 		for lineNumber, line := range strings.Split(string(contents), "\n") {
 			lineNumber++
-			for _, match := range append(posixMachinePathPattern.FindAllString(line, -1), windowsMachinePathPattern.FindAllString(line, -1)...) {
-				if isURLPath(line, match) {
+			for _, match := range append(posixMachinePathPattern.FindAllStringIndex(line, -1), windowsMachinePathPattern.FindAllStringIndex(line, -1)...) {
+				matchPosition := match[0]
+				if isURLPath(line, matchPosition) {
 					continue
 				}
-				if matchPosition := strings.Index(line, match); matchPosition > 0 && line[matchPosition-1] == '\\' {
+				if matchPosition > 0 && line[matchPosition-1] == '\\' {
 					continue
 				}
 				result.Status = StatusFail
@@ -59,11 +60,7 @@ func (absolutePathCheck) Run(_ context.Context, r *repo.Repo) Result {
 	return result
 }
 
-func isURLPath(line, match string) bool {
-	position := strings.Index(line, match)
-	if position < 0 {
-		return false
-	}
+func isURLPath(line string, position int) bool {
 	prefix := line[:position]
 	return strings.Contains(prefix, "://") && !strings.ContainsAny(prefix[strings.LastIndex(prefix, "://")+3:], " \t")
 }

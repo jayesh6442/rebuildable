@@ -15,6 +15,25 @@ go install ./cmd/rebuildable
 
 Docker is only needed for the verification command. The audit, fix, and default test suite do not require API keys. Dependencies are vendored for offline builds.
 
+## Clean Linux rebuild
+
+From a fresh clone on Linux, these are the complete build, test, audit, and
+container commands:
+
+```sh
+git clone https://github.com/jayesh6442/rebuildable.git
+cd rebuildable
+GOPROXY=off make build
+GOPROXY=off make test
+GOPROXY=off make lint
+./bin/rebuildable audit . --min-score 8
+docker build --tag rebuildable .
+docker run --rm rebuildable
+```
+
+The first Docker build may download the pinned Go base image. After the image
+is available locally, the build itself uses the vendored Go dependencies.
+
 ## Run
 
 Audit the current repository:

@@ -55,6 +55,27 @@ func TestTestCommandCheck(t *testing.T) {
 	}
 }
 
+func TestTestCommandCheckReportsMakeRecipeNotPrerequisites(t *testing.T) {
+	tests := []struct {
+		name     string
+		makefile string
+		want     string
+	}{
+		{name: "prerequisite with recipe", makefile: "test: build\n\tgo test ./...\n", want: "test target runs go test ./..."},
+		{name: "prerequisite with inline recipe", makefile: "test: build ; go test ./...\n", want: "test target runs go test ./..."},
+		{name: "prerequisites only", makefile: "test: unit integration\n", want: "test target runs unit integration"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			loaded := loadContentRepo(t, map[string]string{"Makefile": test.makefile}, repo.EcosystemGo)
+			result := (testCommandCheck{}).Run(context.Background(), loaded)
+			if result.Status != StatusPass || len(result.Findings) != 1 || result.Findings[0].Message != test.want {
+				t.Fatalf("status = %s, findings = %+v; want pass with %q", result.Status, result.Findings, test.want)
+			}
+		})
+	}
+}
+
 func TestReadmeCheckIgnoresFencedHeadings(t *testing.T) {
 	partial := loadContentRepo(t, map[string]string{
 		"README.md": "# Project\n\n## Setup\n\nInstall Go.\n\n```markdown\n## Run\n## Test\n```\n",

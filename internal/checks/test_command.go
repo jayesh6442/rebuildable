@@ -139,8 +139,10 @@ func makeTestTarget(r *repo.Repo) (int, string) {
 		if len(parts) != 2 {
 			continue
 		}
-		inline := strings.TrimSpace(strings.SplitN(parts[1], "#", 2)[0])
-		if inline != "" && inline != ";" {
+		// Make only treats text after ";" on the rule line as a recipe; anything
+		// before it is a prerequisite list, not a command.
+		prerequisites, inline, _ := strings.Cut(strings.SplitN(parts[1], "#", 2)[0], ";")
+		if inline = strings.TrimSpace(inline); inline != "" {
 			return index + 1, inline
 		}
 		for _, recipe := range lines[index+1:] {
@@ -154,6 +156,9 @@ func makeTestTarget(r *repo.Repo) (int, string) {
 			if command != "" {
 				return index + 1, command
 			}
+		}
+		if prerequisites = strings.TrimSpace(prerequisites); prerequisites != "" {
+			return index + 1, prerequisites
 		}
 	}
 	return 0, ""

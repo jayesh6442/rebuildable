@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
@@ -51,6 +52,15 @@ func listWorkspaceFiles(root string) ([]string, error) {
 	files := make([]string, 0)
 	err := filepath.WalkDir(root, func(path string, entry fs.DirEntry, err error) error {
 		if err != nil {
+			// Unreadable entries below the root (for example root-owned
+			// container volumes) are skipped like unreadable files instead of
+			// aborting the whole listing.
+			if path != root && errors.Is(err, fs.ErrPermission) {
+				if entry != nil && entry.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
 			return err
 		}
 		if path != root && ignoredWorkspaceDirectory(entry.Name()) {

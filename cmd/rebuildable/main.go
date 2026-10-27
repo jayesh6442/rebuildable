@@ -216,16 +216,19 @@ func newVerifyCommand() *cobra.Command {
 			}
 			defer cleanup()
 			verification, err := verify.Run(cmd.Context(), workspace, verify.Options{Timeout: timeout, Port: port, KeepLogs: keepLogs, LogDir: logDir, Trusted: trust})
-			if err != nil {
+			if err != nil && !errors.Is(err, verify.ErrCleanupFailed) {
 				return err
 			}
-			if err := verify.RenderText(cmd.OutOrStdout(), verification); err != nil {
-				return err
+			if renderErr := verify.RenderText(cmd.OutOrStdout(), verification); renderErr != nil {
+				return renderErr
 			}
 			if !verification.Passed() {
+				if err != nil {
+					fmt.Fprintln(cmd.ErrOrStderr(), "warning:", err)
+				}
 				return &exitError{code: 1, err: fmt.Errorf("verification failed")}
 			}
-			return nil
+			return err
 		},
 	}
 	command.Flags().DurationVar(&timeout, "timeout", 10*time.Minute, "timeout for each Docker stage")

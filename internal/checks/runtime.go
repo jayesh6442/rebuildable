@@ -59,7 +59,7 @@ func goRuntime(r *repo.Repo) (Status, Finding) {
 	}
 	goLine, goVersion := directive(contents, "go")
 	toolchainLine, toolchainVersion := directive(contents, "toolchain")
-	if goVersion != "" && toolchainVersion != "" && goDirectiveVersion.MatchString(goVersion) && strings.HasPrefix(toolchainVersion, "go") && goDirectiveVersion.MatchString(strings.TrimPrefix(toolchainVersion, "go")) {
+	if goVersion != "" && toolchainVersion != "" && goDirectiveVersion.MatchString(goVersion) && strings.HasPrefix(toolchainVersion, "go") && exactRuntimeVersion.MatchString(strings.TrimPrefix(toolchainVersion, "go")) {
 		return StatusPass, Finding{File: "go.mod", Line: toolchainLine, Message: fmt.Sprintf("Go %s with toolchain %s", goVersion, toolchainVersion)}
 	}
 	if goVersion != "" {

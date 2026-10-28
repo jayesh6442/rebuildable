@@ -65,3 +65,26 @@ func TestRenderMarkdownEscapesTableContent(t *testing.T) {
 		}
 	}
 }
+
+func TestRenderMarkdownFencesCodeSpansContainingBackticks(t *testing.T) {
+	repository := &repo.Repo{DisplayName: "fix`ture", Ecosystems: []repo.Ecosystem{repo.EcosystemGo}}
+	results := []checks.Result{{
+		CheckID:  "2",
+		Status:   checks.StatusFail,
+		Findings: []checks.Finding{{File: "`odd``name`", Message: "lockfile is missing"}},
+	}}
+
+	var output bytes.Buffer
+	if err := RenderMarkdown(&output, repository, results, nil); err != nil {
+		t.Fatalf("render Markdown: %v", err)
+	}
+	text := output.String()
+	for _, expected := range []string{"- Repository: ``fix`ture``", "| ``` `odd``name` ``` — lockfile is missing |"} {
+		if !strings.Contains(text, expected) {
+			t.Errorf("Markdown does not contain %q:\n%s", expected, text)
+		}
+	}
+	if strings.Contains(text, "\\`") {
+		t.Errorf("Markdown contains a backslash-escaped backtick, which CommonMark ignores inside code spans:\n%s", text)
+	}
+}

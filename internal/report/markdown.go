@@ -11,7 +11,7 @@ import (
 
 func RenderMarkdown(w io.Writer, r *repo.Repo, results []checks.Result, minimumScore *int) error {
 	document := BuildDocument(r, results, minimumScore)
-	if _, err := fmt.Fprintf(w, "# Rebuildable report\n\n- Repository: `%s`\n- Ecosystems: `%s`\n- Score: **%d/%d**\n", escapeCode(document.Repository), escapeCode(strings.Join(document.Ecosystems, ", ")), document.Score, document.Total); err != nil {
+	if _, err := fmt.Fprintf(w, "# Rebuildable report\n\n- Repository: %s\n- Ecosystems: %s\n- Score: **%d/%d**\n", codeSpan(document.Repository), codeSpan(strings.Join(document.Ecosystems, ", ")), document.Score, document.Total); err != nil {
 		return err
 	}
 	if document.MinimumScore != nil {
@@ -33,7 +33,7 @@ func RenderMarkdown(w io.Writer, r *repo.Repo, results []checks.Result, minimumS
 			}
 			message := escapeCell(finding.Message)
 			if location != "" {
-				message = fmt.Sprintf("`%s` — %s", escapeCode(escapeCell(location)), message)
+				message = fmt.Sprintf("%s — %s", codeSpan(escapeCell(location)), message)
 			}
 			if _, err := fmt.Fprintf(w, "|  |  |  | %s |\n", message); err != nil {
 				return err
@@ -62,6 +62,22 @@ func escapeCell(value string) string {
 	return value
 }
 
-func escapeCode(value string) string {
-	return strings.ReplaceAll(value, "`", "\\`")
+// codeSpan wraps value in a CommonMark code span. Backslash escapes are not
+// processed inside code spans, so the fence must be longer than any backtick
+// run in value, with space padding when value starts or ends with a backtick.
+func codeSpan(value string) string {
+	longest, run := 0, 0
+	for _, r := range value {
+		if r == '`' {
+			run++
+			longest = max(longest, run)
+		} else {
+			run = 0
+		}
+	}
+	fence := strings.Repeat("`", longest+1)
+	if strings.HasPrefix(value, "`") || strings.HasSuffix(value, "`") {
+		value = " " + value + " "
+	}
+	return fence + value + fence
 }

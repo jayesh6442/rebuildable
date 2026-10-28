@@ -93,6 +93,31 @@ func TestRuntimeCheck(t *testing.T) {
 	}
 }
 
+func TestGoRuntimeRequiresExactToolchain(t *testing.T) {
+	tests := []struct {
+		name  string
+		goMod string
+		want  Status
+	}{
+		{name: "exact toolchain", goMod: "module example.com/runtime\ngo 1.27\ntoolchain go1.27.2\n", want: StatusPass},
+		{name: "exact go and toolchain", goMod: "module example.com/runtime\ngo 1.27.1\ntoolchain go1.27.2\n", want: StatusPass},
+		{name: "language version toolchain", goMod: "module example.com/runtime\ngo 1.27\ntoolchain go1.27\n", want: StatusWarn},
+		{name: "default toolchain", goMod: "module example.com/runtime\ngo 1.27\ntoolchain default\n", want: StatusWarn},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			loaded := loadContentRepo(t, map[string]string{"go.mod": test.goMod, "go.sum": ""}, repo.EcosystemGo)
+			result := (runtimeCheck{}).Run(context.Background(), loaded)
+			if result.Status != test.want {
+				t.Fatalf("status = %s, want %s; findings = %+v", result.Status, test.want, result.Findings)
+			}
+			if test.want == StatusWarn && !containsFinding(result.Findings, "toolchain is not pinned") {
+				t.Fatalf("findings = %+v, want toolchain is not pinned", result.Findings)
+			}
+		})
+	}
+}
+
 func TestLockfileVariants(t *testing.T) {
 	tests := []struct {
 		name      string

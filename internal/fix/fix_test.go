@@ -190,6 +190,26 @@ func TestPinsReplacesInexactGoToolchainDirective(t *testing.T) {
 	}
 }
 
+func TestPinsReplacesLanguageVersionGoToolchain(t *testing.T) {
+	root := t.TempDir()
+	writeTestFile(t, root, "go.mod", "module example.com/pins\n\ngo 1.27\n\ntoolchain go1.27\n")
+	writeTestFile(t, root, "go.sum", "")
+	writeTestFile(t, root, "main.go", "package main\nfunc main() {}\n")
+	testutil.InitGitRepo(t, root, 3)
+	workspace := loadWorkspace(t, root)
+	plan, err := PlanChanges(context.Background(), workspace, Options{Only: []string{"pins"}})
+	if err != nil {
+		t.Fatalf("plan Go pins: %v", err)
+	}
+	if len(plan.Changes) != 1 || plan.Changes[0].Path != "go.mod" {
+		t.Fatalf("pin changes = %+v", plan.Changes)
+	}
+	want := "module example.com/pins\n\ngo 1.27\n\ntoolchain go" + defaultGoVersion + "\n"
+	if got := string(plan.Changes[0].Content); got != want {
+		t.Fatalf("generated go.mod = %q, want %q", got, want)
+	}
+}
+
 func loadWorkspace(t *testing.T, root string) *repo.Workspace {
 	t.Helper()
 	workspace, cleanup, err := repo.LoadWorkspace(context.Background(), root)

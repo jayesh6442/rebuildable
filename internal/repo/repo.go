@@ -146,7 +146,11 @@ func redactInput(input string) string {
 	if strings.Contains(input, "://") {
 		parts := strings.SplitN(input, "://", 2)
 		authorityAndPath := parts[1]
-		if at := strings.LastIndex(authorityAndPath, "@"); at >= 0 {
+		authority := authorityAndPath
+		if end := strings.IndexAny(authority, "/?#"); end >= 0 {
+			authority = authority[:end]
+		}
+		if at := strings.LastIndex(authority, "@"); at >= 0 {
 			authorityAndPath = "<credentials-redacted>" + authorityAndPath[at:]
 		}
 		if query := strings.IndexAny(authorityAndPath, "?#"); query >= 0 {

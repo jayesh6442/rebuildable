@@ -87,6 +87,32 @@ func TestMinimumScoreReturnsExitCodeOneAfterRendering(t *testing.T) {
 	}
 }
 
+func TestVerifyRendersReportWhenDockerCleanupFails(t *testing.T) {
+	bin := t.TempDir()
+	fakeDocker := "#!/bin/sh\ncase \"$1\" in\n  create) echo fake-container-id ;;\n  inspect) echo 'false|0' ;;\n  rm|rmi) echo \"permission denied\" ; exit 1 ;;\nesac\nexit 0\n"
+	if err := os.WriteFile(filepath.Join(bin, "docker"), []byte(fakeDocker), 0o755); err != nil {
+		t.Fatalf("write fake docker: %v", err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	root := testutil.CopyFixture(t, "good-go")
+	testutil.InitGitRepo(t, root, 3)
+
+	command := newRootCommand()
+	var output bytes.Buffer
+	command.SetOut(&output)
+	command.SetErr(&output)
+	command.SetArgs([]string{"verify", root, "--trust", "--port", "18080"})
+	err := command.Execute()
+	if err == nil || exitCode(err) != 2 || !strings.Contains(err.Error(), "Docker cleanup failed") {
+		t.Fatalf("error = %v, want Docker cleanup tool error", err)
+	}
+	for _, stage := range []string{"build", "test-build", "run", "test"} {
+		if !strings.Contains(output.String(), "✓ "+stage) {
+			t.Fatalf("stage %s missing from report rendered before cleanup error:\n%s", stage, output.String())
+		}
+	}
+}
+
 func TestInvalidMinimumScoreReturnsToolErrorCode(t *testing.T) {
 	command := newRootCommand()
 	command.SetArgs([]string{"audit", ".", "--min-score", "9"})

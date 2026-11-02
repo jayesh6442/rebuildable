@@ -190,6 +190,39 @@ func TestLoadSkipsTrackedPathsThroughSymlinkedDirectories(t *testing.T) {
 	}
 }
 
+func TestLoadWorkspaceSkipsUnreadableDirectories(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root can read directories regardless of permissions")
+	}
+	root := t.TempDir()
+	if err := os.WriteFile(filepath.Join(root, "go.mod"), []byte("module example.com/test\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	locked := filepath.Join(root, "data")
+	if err := os.Mkdir(locked, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(locked, "secret.txt"), []byte("hidden"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(locked, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(locked, 0o755) })
+
+	workspace, cleanup, err := repo.LoadWorkspace(t.Context(), root)
+	if err != nil {
+		t.Fatalf("load workspace with unreadable directory: %v", err)
+	}
+	defer cleanup()
+	if !workspace.HasFile("go.mod") {
+		t.Fatalf("workspace files = %v, want go.mod", workspace.Files)
+	}
+	if workspace.HasFile("data/secret.txt") {
+		t.Fatalf("workspace listed a file inside an unreadable directory: %v", workspace.Files)
+	}
+}
+
 func TestDetectEcosystems(t *testing.T) {
 	tests := []struct {
 		name  string

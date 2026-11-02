@@ -264,7 +264,7 @@ func gitCommitCount(ctx context.Context, gitRoot string) (int, error) {
 		if strings.Contains(err.Error(), "does not have any commits yet") || strings.Contains(err.Error(), "unknown revision") {
 			return 0, nil
 		}
-		return 0, nil
+		return 0, err
 	}
 
 	var count int

@@ -17,7 +17,7 @@ var (
 	envKeyPattern        = regexp.MustCompile(`(?m)^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=`)
 	awsSecretPattern     = regexp.MustCompile(`(?:AKIA|ASIA)[A-Z0-9]{16}`)
 	openAISecretPattern  = regexp.MustCompile(`sk-[A-Za-z0-9]{20,}`)
-	githubSecretPattern  = regexp.MustCompile(`ghp_[A-Za-z0-9]{20,}`)
+	githubSecretPattern  = regexp.MustCompile(`\b(?:ghp_[A-Za-z0-9]{20,}|gh[ousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{22,})\b`)
 	privateKeyPattern    = regexp.MustCompile(`-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----`)
 )
 

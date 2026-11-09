@@ -3,6 +3,7 @@ package checks
 import (
 	"context"
 	"fmt"
+	"path"
 	"regexp"
 	"sort"
 	"strings"
@@ -44,13 +45,18 @@ func (environmentCheck) Run(_ context.Context, r *repo.Repo) Result {
 	}
 
 	fixable := false
-	if repo.HasTrackedFile(r, ".env") {
-		result.Status = StatusFail
-		result.Findings = append(result.Findings, Finding{
-			File:    ".env",
-			Message: "a .env file is tracked by Git",
-			Hint:    "remove .env from Git and add it to .gitignore",
-		})
+	if r.GitAvailable {
+		for _, file := range r.TrackedFiles {
+			if !isSensitiveEnvFile(file) {
+				continue
+			}
+			result.Status = StatusFail
+			result.Findings = append(result.Findings, Finding{
+				File:    file,
+				Message: "a .env file is tracked by Git",
+				Hint:    "remove this file from Git and add it to .gitignore",
+			})
+		}
 	}
 
 	for _, file := range r.Files {
@@ -100,6 +106,23 @@ func (environmentCheck) Run(_ context.Context, r *repo.Repo) Result {
 	result.Status = StatusPass
 	result.Findings = []Finding{{Message: "no tracked .env, hard-coded secret, or undocumented environment variable found"}}
 	return result
+}
+
+// Match environment files at any depth, without flagging distributable templates.
+func isSensitiveEnvFile(file string) bool {
+	name := path.Base(file) // repository paths use forward slashes on every OS
+	if name == ".env" {
+		return true
+	}
+	if !strings.HasPrefix(name, ".env.") {
+		return false
+	}
+	switch name {
+	case ".env.example", ".env.sample", ".env.template", ".env.dist":
+		return false
+	default:
+		return true
+	}
 }
 
 func collectEnvironmentReferences(r *repo.Repo) []envReference {
